@@ -23,11 +23,11 @@ jobs:
 
       - name: Download ExifTool for Windows
         run: |
-          $url = "https://exiftool.org/exiftool-13.30_64.zip"
-          Invoke-WebRequest -Uri $url -OutFile exiftool.zip
+          Invoke-WebRequest -Uri "https://sourceforge.net/projects/exiftool/files/exiftool-13.55_32.zip/download" -OutFile exiftool.zip -UseBasicParsing
           Expand-Archive -Path exiftool.zip -DestinationPath exiftool_tmp -Force
           $exe = Get-ChildItem -Path exiftool_tmp -Filter "*.exe" -Recurse | Select-Object -First 1
           Copy-Item $exe.FullName -Destination "exiftool.exe"
+          Write-Host "ExifTool downloaded: $(Get-Item exiftool.exe).Length bytes"
         shell: pwsh
 
       - name: Build EXE with PyInstaller
@@ -42,8 +42,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1
-          name: Stock Metadata Embedder v1.1
+          tag_name: v1.2
+          name: Stock Metadata Embedder v1.2
           body: |
             ## Stock Metadata Embedder
             Batch embed IPTC + XMP metadata from CSV into JPEG, PNG, EPS, AI files.
