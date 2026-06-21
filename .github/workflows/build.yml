@@ -23,11 +23,19 @@ jobs:
 
       - name: Download ExifTool for Windows
         run: |
-          Invoke-WebRequest -Uri "https://sourceforge.net/projects/exiftool/files/exiftool-13.55_32.zip/download" -OutFile exiftool.zip -UseBasicParsing
-          Expand-Archive -Path exiftool.zip -DestinationPath exiftool_tmp -Force
-          $exe = Get-ChildItem -Path exiftool_tmp -Filter "*.exe" -Recurse | Select-Object -First 1
-          Copy-Item $exe.FullName -Destination "exiftool.exe"
-          Write-Host "ExifTool downloaded: $(Get-Item exiftool.exe).Length bytes"
+          $url = "https://github.com/exiftool/exiftool/archive/refs/tags/13.55.zip"
+          Invoke-WebRequest -Uri $url -OutFile et.zip -UseBasicParsing
+          Expand-Archive et.zip -DestinationPath et_src -Force
+          dir et_src
+        shell: pwsh
+
+      - name: Install Strawberry Perl and build ExifTool exe
+        run: |
+          choco install strawberryperl -y --no-progress
+          refreshenv
+          cpan PAR::Packer
+          cd et_src\exiftool-13.55
+          pp -o ..\..\exiftool.exe exiftool
         shell: pwsh
 
       - name: Build EXE with PyInstaller
@@ -42,16 +50,14 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.2
-          name: Stock Metadata Embedder v1.2
+          tag_name: v1.3
+          name: Stock Metadata Embedder v1.3
           body: |
             ## Stock Metadata Embedder
             Batch embed IPTC + XMP metadata from CSV into JPEG, PNG, EPS, AI files.
-            ### How to use
-            1. Download MetadataEmbedder.exe below
-            2. Double-click to open — no install needed
-            3. Load your CSV, map columns, select image folder, click Embed
-            ExifTool is bundled inside — nothing else needed.
+            1. Download MetadataEmbedder.exe
+            2. Double-click to open
+            3. Load CSV, map columns, select folder, click Embed
           files: dist\MetadataEmbedder.exe
           make_latest: true
         env:
