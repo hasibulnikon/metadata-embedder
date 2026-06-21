@@ -25,27 +25,14 @@ jobs:
         run: |
           Invoke-WebRequest -Uri "https://oliverbetz.de/cms/files/Artikel/ExifTool-for-Windows/ExifTool_install_13.59_64.exe" -OutFile ExifTool_install.exe -UseBasicParsing
           Start-Process -FilePath "ExifTool_install.exe" -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=C:\ExifTool" -Wait
-          if (Test-Path "C:\ExifTool\exiftool.exe") {
-            Copy-Item "C:\ExifTool\exiftool.exe" -Destination "exiftool.exe"
-            Write-Host "ExifTool installed successfully"
-          } elseif (Test-Path "C:\Windows\exiftool.exe") {
-            Copy-Item "C:\Windows\exiftool.exe" -Destination "exiftool.exe"
-            Write-Host "ExifTool found in Windows"
-          } else {
-            $found = Get-ChildItem -Path "C:\" -Filter "exiftool.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($found) {
-              Copy-Item $found.FullName -Destination "exiftool.exe"
-              Write-Host "ExifTool found at: $($found.FullName)"
-            } else {
-              Write-Error "ExifTool not found after install"
-              exit 1
-            }
-          }
-          Write-Host "Size: $((Get-Item exiftool.exe).Length) bytes"
+          Write-Host "Contents of C:\ExifTool:"
+          Get-ChildItem "C:\ExifTool" -Recurse | Select-Object FullName
         shell: pwsh
 
       - name: Build EXE with PyInstaller
-        run: pyinstaller --onefile --windowed --name "MetadataEmbedder" --add-data "exiftool.exe;." metadata_tool.py
+        run: |
+          pyinstaller --onefile --windowed --name "MetadataEmbedder" --add-data "C:\ExifTool\exiftool.exe;exiftool_pkg" --add-data "C:\ExifTool\exiftool_files;exiftool_pkg\exiftool_files" metadata_tool.py
+        shell: pwsh
 
       - name: Upload EXE as artifact
         uses: actions/upload-artifact@v4
@@ -56,10 +43,10 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.5
-          name: Stock Metadata Embedder v1.5
+          tag_name: v1.6
+          name: Stock Metadata Embedder v1.6
           body: |
-            ## Stock Metadata Embedder v1.5
+            ## Stock Metadata Embedder v1.6
             Dark theme + Reset button. Batch embed IPTC + XMP from CSV into JPEG, PNG, EPS, AI.
             1. Download MetadataEmbedder.exe
             2. Double-click to open — no install needed
