@@ -23,20 +23,25 @@ jobs:
 
       - name: Download ExifTool for Windows
         run: |
-          $url = "https://github.com/oliverbetz/ExifTool-for-Windows/releases/download/ExifTool-13.55/ExifTool_install_64.exe"
-          Invoke-WebRequest -Uri $url -OutFile ExifTool_install.exe -UseBasicParsing
-          Start-Process -FilePath "ExifTool_install.exe" -ArgumentList "/S /D=C:\exiftool" -Wait
-          Copy-Item "C:\exiftool\exiftool.exe" -Destination "exiftool.exe"
+          Invoke-WebRequest -Uri "https://oliverbetz.de/cms/files/Artikel/ExifTool-for-Windows/ExifTool_install_13.59_64.exe" -OutFile ExifTool_install.exe -UseBasicParsing
+          Start-Process -FilePath "ExifTool_install.exe" -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=C:\ExifTool" -Wait
+          if (Test-Path "C:\ExifTool\exiftool.exe") {
+            Copy-Item "C:\ExifTool\exiftool.exe" -Destination "exiftool.exe"
+            Write-Host "ExifTool installed successfully"
+          } elseif (Test-Path "C:\Windows\exiftool.exe") {
+            Copy-Item "C:\Windows\exiftool.exe" -Destination "exiftool.exe"
+            Write-Host "ExifTool found in Windows"
+          } else {
+            $found = Get-ChildItem -Path "C:\" -Filter "exiftool.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) {
+              Copy-Item $found.FullName -Destination "exiftool.exe"
+              Write-Host "ExifTool found at: $($found.FullName)"
+            } else {
+              Write-Error "ExifTool not found after install"
+              exit 1
+            }
+          }
           Write-Host "Size: $((Get-Item exiftool.exe).Length) bytes"
-        shell: pwsh
-
-      - name: Install Strawberry Perl and build ExifTool exe
-        run: |
-          choco install strawberryperl -y --no-progress
-          refreshenv
-          cpan PAR::Packer
-          cd et_src\exiftool-13.55
-          pp -o ..\..\exiftool.exe exiftool
         shell: pwsh
 
       - name: Build EXE with PyInstaller
@@ -51,14 +56,15 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.4
-          name: Stock Metadata Embedder v1.4
+          tag_name: v1.5
+          name: Stock Metadata Embedder v1.5
           body: |
-            ## Stock Metadata Embedder
-            Batch embed IPTC + XMP metadata from CSV into JPEG, PNG, EPS, AI files.
+            ## Stock Metadata Embedder v1.5
+            Dark theme + Reset button. Batch embed IPTC + XMP from CSV into JPEG, PNG, EPS, AI.
             1. Download MetadataEmbedder.exe
-            2. Double-click to open
-            3. Load CSV, map columns, select folder, click Embed
+            2. Double-click to open — no install needed
+            3. Load CSV → map columns → select folder → Embed
+            ExifTool is bundled inside.
           files: dist\MetadataEmbedder.exe
           make_latest: true
         env:
