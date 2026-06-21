@@ -25,13 +25,43 @@ jobs:
         run: |
           Invoke-WebRequest -Uri "https://oliverbetz.de/cms/files/Artikel/ExifTool-for-Windows/ExifTool_install_13.59_64.exe" -OutFile ExifTool_install.exe -UseBasicParsing
           Start-Process -FilePath "ExifTool_install.exe" -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=C:\ExifTool" -Wait
-          Write-Host "Contents of C:\ExifTool:"
-          Get-ChildItem "C:\ExifTool" -Recurse | Select-Object FullName
+          if (Test-Path "C:\ExifTool\exiftool.exe") {
+            Copy-Item "C:\ExifTool\exiftool.exe" -Destination "exiftool.exe"
+          } elseif (Test-Path "C:\Windows\exiftool.exe") {
+            Copy-Item "C:\Windows\exiftool.exe" -Destination "exiftool.exe"
+          } else {
+            $found = Get-ChildItem -Path "C:\" -Filter "exiftool.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { Copy-Item $found.FullName -Destination "exiftool.exe" }
+            else { Write-Error "ExifTool not found"; exit 1 }
+          }
+          $size = (Get-Item exiftool.exe).Length
+          Write-Host "ExifTool ready: $size bytes"
         shell: pwsh
 
-      - name: Build EXE with PyInstaller
+      - name: Build EXE with PyInstaller (with icon if present)
         run: |
-          pyinstaller --onefile --windowed --name "MetadataEmbedder" --add-data "C:\ExifTool\exiftool.exe;exiftool_pkg" --add-data "C:\ExifTool\exiftool_files;exiftool_pkg\exiftool_files" metadata_tool.py
+          $iconFlag = ""
+          if (Test-Path "icon.ico") {
+            $iconFlag = "--icon=icon.ico"
+            Write-Host "Custom icon found, using icon.ico"
+          } else {
+            Write-Host "No icon.ico found, using default"
+          }
+          $addData = "--add-data=C:\ExifTool\exiftool.exe;exiftool_pkg"
+          if (Test-Path "C:\ExifTool\exiftool_files") {
+            $addData2 = "--add-data=C:\ExifTool\exiftool_files;exiftool_pkg\exiftool_files"
+            if ($iconFlag) {
+              pyinstaller --onefile --windowed --name "MetadataEmbedder" $iconFlag $addData $addData2 metadata_tool.py
+            } else {
+              pyinstaller --onefile --windowed --name "MetadataEmbedder" $addData $addData2 metadata_tool.py
+            }
+          } else {
+            if ($iconFlag) {
+              pyinstaller --onefile --windowed --name "MetadataEmbedder" $iconFlag $addData metadata_tool.py
+            } else {
+              pyinstaller --onefile --windowed --name "MetadataEmbedder" $addData metadata_tool.py
+            }
+          }
         shell: pwsh
 
       - name: Upload EXE as artifact
@@ -43,15 +73,19 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.6
-          name: Stock Metadata Embedder v1.6
+          tag_name: v1.7
+          name: Stock Metadata Embedder v1.7
           body: |
-            ## Stock Metadata Embedder v1.6
-            Dark theme + Reset button. Batch embed IPTC + XMP from CSV into JPEG, PNG, EPS, AI.
-            1. Download MetadataEmbedder.exe
-            2. Double-click to open — no install needed
-            3. Load CSV → map columns → select folder → Embed
-            ExifTool is bundled inside.
+            ## Stock Metadata Embedder v1.7
+            - Dark theme UI with compact layout
+            - Reset button next to Embed button
+            - Activity log panel (collapsible)
+            - Status bar with live pill counters
+            - Extension-agnostic file matching (CSV says .png, finds .jpg automatically)
+            - Custom icon support (place icon.ico in repo root)
+            - Timestamps in activity log
+
+            **How to use:** Download MetadataEmbedder.exe · Double-click · Load CSV · Map columns · Select folder · Embed
           files: dist\MetadataEmbedder.exe
           make_latest: true
         env:
