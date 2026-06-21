@@ -5,6 +5,10 @@ import csv, subprocess, os, sys, threading
 def find_exiftool():
     if getattr(sys, 'frozen', False):
         base = sys._MEIPASS
+        # Bundled path
+        bundled = os.path.join(base, 'exiftool_pkg', 'exiftool.exe')
+        if os.path.exists(bundled):
+            return bundled
     else:
         base = os.path.dirname(os.path.abspath(__file__))
     for name in ['exiftool.exe', 'exiftool']:
