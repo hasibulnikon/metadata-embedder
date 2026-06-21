@@ -1,0 +1,62 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller
+
+      - name: Download ExifTool for Windows
+        run: |
+          curl -L "https://exiftool.org/exiftool-12.76.zip" -o exiftool.zip
+          Expand-Archive -Path exiftool.zip -DestinationPath exiftool_tmp
+          Copy-Item "exiftool_tmp\exiftool(-k).exe" -Destination "exiftool.exe"
+        shell: pwsh
+
+      - name: Build EXE with PyInstaller
+        run: |
+          pyinstaller --onefile --windowed --name "MetadataEmbedder" --add-data "exiftool.exe;." metadata_tool.py
+        shell: cmd
+
+      - name: Upload EXE as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MetadataEmbedder-Windows
+          path: dist\MetadataEmbedder.exe
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0
+          name: Stock Metadata Embedder v1.0
+          body: |
+            ## Stock Metadata Embedder
+
+            Batch embed IPTC + XMP metadata from CSV into JPEG, PNG, EPS, AI files.
+
+            ### How to use
+            1. Download `MetadataEmbedder.exe` below
+            2. Double-click to open — no install needed
+            3. Load your CSV, map columns, select image folder, click Embed
+
+            ExifTool is bundled inside — nothing else to install.
+          files: dist\MetadataEmbedder.exe
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
