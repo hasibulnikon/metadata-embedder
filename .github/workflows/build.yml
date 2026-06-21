@@ -23,10 +23,11 @@ jobs:
 
       - name: Download ExifTool for Windows
         run: |
-          $url = "https://github.com/exiftool/exiftool/archive/refs/tags/13.55.zip"
-          Invoke-WebRequest -Uri $url -OutFile et.zip -UseBasicParsing
-          Expand-Archive et.zip -DestinationPath et_src -Force
-          dir et_src
+          $url = "https://github.com/oliverbetz/ExifTool-for-Windows/releases/download/ExifTool-13.55/ExifTool_install_64.exe"
+          Invoke-WebRequest -Uri $url -OutFile ExifTool_install.exe -UseBasicParsing
+          Start-Process -FilePath "ExifTool_install.exe" -ArgumentList "/S /D=C:\exiftool" -Wait
+          Copy-Item "C:\exiftool\exiftool.exe" -Destination "exiftool.exe"
+          Write-Host "Size: $((Get-Item exiftool.exe).Length) bytes"
         shell: pwsh
 
       - name: Install Strawberry Perl and build ExifTool exe
@@ -50,8 +51,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.3
-          name: Stock Metadata Embedder v1.3
+          tag_name: v1.4
+          name: Stock Metadata Embedder v1.4
           body: |
             ## Stock Metadata Embedder
             Batch embed IPTC + XMP metadata from CSV into JPEG, PNG, EPS, AI files.
