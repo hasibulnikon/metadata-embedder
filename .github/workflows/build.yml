@@ -40,39 +40,35 @@ jobs:
 
       - name: Build EXE with PyInstaller (with icon if present)
         run: |
-          # Build argument list as an array to avoid quoting issues
-          $args = @(
-            "--onefile",
-            "--windowed",
-            "--name", "MetadataEmbedder"
-          )
-
-          # Add icon if present
+          # Determine icon flag — prefer PNG, fallback to ICO
+          $iconFlag = ""
           if (Test-Path "icon.png") {
-            $args += "--icon=icon.png"
+            $iconFlag = "--icon=icon.png"
             Write-Host "Custom PNG icon found"
-            # Also bundle the PNG itself (for the app to use at runtime)
-            $args += "--add-data", "icon.png;."
           } elseif (Test-Path "icon.ico") {
-            $args += "--icon=icon.ico"
+            $iconFlag = "--icon=icon.ico"
             Write-Host "Custom ICO icon found"
           } else {
             Write-Host "No custom icon found, using default"
           }
-
-          # Bundle exiftool.exe
-          $args += "--add-data", "exiftool.exe;exiftool_pkg"
-
-          # If exiftool_files folder exists (sometimes bundled with installer), add it too
+          # Bundle icon.png into app if present
+          $iconData = ""
+          if (Test-Path "icon.png") { $iconData = "--add-data=icon.png;." }
+          $addData = "--add-data=C:\ExifTool\exiftool.exe;exiftool_pkg"
           if (Test-Path "C:\ExifTool\exiftool_files") {
-            $args += "--add-data", "C:\ExifTool\exiftool_files;exiftool_pkg\exiftool_files"
+            $addData2 = "--add-data=C:\ExifTool\exiftool_files;exiftool_pkg\exiftool_files"
+            $cmd = "pyinstaller --onefile --windowed --name MetadataEmbedder $addData $addData2"
+            if ($iconFlag) { $cmd += " $iconFlag" }
+            if ($iconData) { $cmd += " $iconData" }
+            $cmd += " metadata_tool.py"
+            Invoke-Expression $cmd
+          } else {
+            $cmd = "pyinstaller --onefile --windowed --name MetadataEmbedder $addData"
+            if ($iconFlag) { $cmd += " $iconFlag" }
+            if ($iconData) { $cmd += " $iconData" }
+            $cmd += " metadata_tool.py"
+            Invoke-Expression $cmd
           }
-
-          # The main script
-          $args += "metadata_tool.py"
-
-          # Invoke pyinstaller with the array
-          & pyinstaller @args
         shell: pwsh
 
       - name: Upload EXE as artifact
