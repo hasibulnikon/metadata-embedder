@@ -18,32 +18,16 @@ def find_exiftool():
             if os.path.exists(c): return c
     return None
 
-def find_file_any_ext(folder, csv_filename, exact_only=False, recursive=False):
-    """Find file in folder (and subfolders if recursive) matching csv_filename.
-    If exact_only is True, only match exact filename with extension."""
+def find_file_any_ext(folder, csv_filename):
     base = os.path.splitext(csv_filename)[0]
-    if exact_only:
-        exact = os.path.join(folder, csv_filename)
-        if os.path.exists(exact): return exact
-        # if not found and recursive, search subfolders for exact name
-        if recursive:
-            for root, dirs, files in os.walk(folder):
-                if csv_filename in files:
-                    return os.path.join(root, csv_filename)
-        return None
-    else:
-        # search in top folder first
-        try:
-            for f in os.listdir(folder):
-                if os.path.splitext(f)[0].lower() == base.lower():
-                    return os.path.join(folder, f)
-        except: pass
-        if recursive:
-            for root, dirs, files in os.walk(folder):
-                for f in files:
-                    if os.path.splitext(f)[0].lower() == base.lower():
-                        return os.path.join(root, f)
-        return None
+    exact = os.path.join(folder, csv_filename)
+    if os.path.exists(exact): return exact
+    try:
+        for f in os.listdir(folder):
+            if os.path.splitext(f)[0].lower() == base.lower():
+                return os.path.join(folder, f)
+    except: pass
+    return None
 
 def get_prefs_path():
     base = os.path.dirname(sys.executable) if getattr(sys,'frozen',False) else os.path.dirname(os.path.abspath(__file__))
@@ -116,16 +100,12 @@ class App:
         self.col_desc=tk.StringVar()
         self.csv_headers=[]
         self.csv_rows=[]
-        # new toggles
-        self.match_exact = tk.BooleanVar(value=False)
-        self.include_subdirs = tk.BooleanVar(value=False)
-        self.remove_program = tk.BooleanVar(value=True)  # default On
         self._load_app_icon()
         self._style()
         self._build()
         self.root.update_idletasks()
-        self._center(560, 620)
-        self.root.minsize(420,550)
+        self._center(560, 600)
+        self.root.minsize(420,500)
         self.check_et()
 
     def _load_app_icon(self):
@@ -219,6 +199,7 @@ class App:
         self._build_scroll_btns(left_wrap)
 
         # Tab toggle button - centered strip between left and log
+        # Center strip — scroll buttons perfectly centered
         self.tab_btn=tk.Frame(self.body,bg=BG,width=30)
         self.tab_btn.grid(row=0,column=1,sticky='ns')
         self.tab_btn.pack_propagate(False)
@@ -251,6 +232,8 @@ class App:
         self.canvas.yview_scroll(int(-1*(e.delta/120)),'units')
 
     def _build_scroll_btns(self, parent):
+        # These go into the toggle_strip frame (column=1 in body grid)
+        # They will be placed after the strip is created in _build()
         pass
 
     def card(self, num, title):
@@ -297,37 +280,6 @@ class App:
         setattr(self,recent_menu_name,menu)
         return e
 
-    def _make_switch(self, parent, var, label_text, command=None):
-        """Create a custom switch toggle (On/Off) with a button."""
-        frame=tk.Frame(parent, bg=BG2)
-        frame.pack(fill='x', pady=(4,2))
-        tk.Label(frame, text=label_text, font=('Segoe UI',9), bg=BG2, fg=TEXT3).pack(side='left')
-        btn=tk.Button(frame, text='On' if var.get() else 'Off',
-            font=('Segoe UI',8,'bold'), width=4,
-            bg=GRNB if var.get() else BG3,
-            fg='white' if var.get() else TEXT3,
-            relief='flat', padx=4, pady=2,
-            cursor='hand2',
-            activebackground=GRNB2 if var.get() else BDR2,
-            activeforeground='white' if var.get() else TEXT3)
-        btn.pack(side='right')
-        def toggle():
-            var.set(not var.get())
-            btn.config(text='On' if var.get() else 'Off',
-                       bg=GRNB if var.get() else BG3,
-                       fg='white' if var.get() else TEXT3,
-                       activebackground=GRNB2 if var.get() else BDR2)
-            if command: command()
-        btn.config(command=toggle)
-        # also bind to var trace for external updates
-        var.trace('w', lambda *args: btn.config(
-            text='On' if var.get() else 'Off',
-            bg=GRNB if var.get() else BG3,
-            fg='white' if var.get() else TEXT3,
-            activebackground=GRNB2 if var.get() else BDR2
-        ))
-        return btn
-
     def _build_embed_row(self):
         row=tk.Frame(self.left,bg=BG,pady=6)
         row.pack(fill='x')
@@ -361,7 +313,6 @@ class App:
         self.inline_field(body,self.csv_path,self.load_csv,'csv_recent_menu')
         self.csv_info=tk.Label(body,text='',font=('Segoe UI',9),bg=BG2,fg=GRN,anchor='w')
         self.csv_info.pack(fill='x')
-        self._make_switch(body, self.match_exact, 'Match Filename Only', self._update_match)
         self._refresh_csv_recent()
 
     def _build_folder(self):
@@ -370,7 +321,6 @@ class App:
         self.inline_field(body,self.folder_path,self.browse_folder,'folder_recent_menu')
         self.match_badge=tk.Label(body,text='',font=('Segoe UI',9,'bold'),bg=BG2,fg=TEXT3,anchor='w')
         self.match_badge.pack(fill='x')
-        self._make_switch(body, self.include_subdirs, 'Include Sub-Folders', self._update_match)
         self.open_folder_btn=tk.Button(body,text='  Open folder in Explorer',
             command=self.open_folder,
             font=('Segoe UI',9,'bold'),bg=BG3,fg=TEXT2,
@@ -400,8 +350,6 @@ class App:
             cb=ttk.Combobox(cell,textvariable=var,state='readonly',font=('Segoe UI',9))
             cb.pack(fill='x',pady=(2,0),ipady=2)
             self.col_combos[label]=cb
-        # Add "Remove Program Name" toggle after the grid
-        self._make_switch(body, self.remove_program, 'Remove Program Name')
 
     def _build_log(self):
         hdr=tk.Frame(self.log_frame,bg=BG3)
@@ -557,14 +505,9 @@ class App:
         col_f=self.col_file.get()
         if not folder or not self.csv_rows or not col_f or col_f=='(skip)':
             self.match_badge.configure(text=''); return
-        exact_only = self.match_exact.get()
-        recursive = self.include_subdirs.get()
-        matched=0
+        matched=sum(1 for row in self.csv_rows
+            if find_file_any_ext(folder,(row.get(col_f) or '').strip()))
         total=len(self.csv_rows)
-        for row in self.csv_rows:
-            fn=(row.get(col_f) or '').strip()
-            if fn and find_file_any_ext(folder, fn, exact_only=exact_only, recursive=recursive):
-                matched+=1
         color=GRN if matched==total else AMB if matched>0 else RED
         self.match_badge.configure(
             text=f'  ✓ {matched} of {total} files matched',fg=color)
@@ -594,10 +537,6 @@ class App:
         self.clear_log()
         self.log('↺  Reset — ready for new batch','info')
         self.set_status(f'Ready{" — Last: "+self.last_summary if self.last_summary else ""}',TEXT3)
-        # reset toggles to default
-        self.match_exact.set(False)
-        self.include_subdirs.set(False)
-        self.remove_program.set(True)
 
     def export_log(self):
         content=self.log_text.get('1.0','end').strip()
@@ -633,9 +572,6 @@ class App:
         col_f=self.col_file.get(); col_t=self.col_title.get()
         col_k=self.col_kw.get(); col_d=self.col_desc.get()
         total=len(self.csv_rows); ok=skipped=errors=0
-        exact_only = self.match_exact.get()
-        recursive = self.include_subdirs.get()
-        remove_prog = self.remove_program.get()
         self.root.after(0,lambda: self.sb_prog.configure(maximum=total,value=0))
         self.root.after(0,lambda: self.log(f'▶  Batch started — {total} rows','info'))
 
@@ -645,7 +581,7 @@ class App:
                 skipped+=1
                 self.root.after(0,lambda n=i+1,t=total,o=ok,s=skipped,e=errors:
                     self._prog(n,t,o,s,e)); continue
-            filepath=find_file_any_ext(folder, filename, exact_only=exact_only, recursive=recursive)
+            filepath=find_file_any_ext(folder,filename)
             if not filepath:
                 skipped+=1
                 self.root.after(0,lambda fn=filename: self.log(f'⚠  Not found: {fn}','warn'))
@@ -660,10 +596,6 @@ class App:
                 for kw in [k.strip() for k in kw_raw.replace(';',',').split(',') if k.strip()]:
                     cmd+=[f'-Keywords={kw}',f'-Subject={kw}']
             if desc: cmd+=[f'-Description={desc}',f'-Caption-Abstract={desc}']
-            # Remove program name if enabled
-            if remove_prog:
-                for tag in ['Software','CreatorTool','Artist','XMP:CreatorTool','IPTC:CreatorTool']:
-                    cmd.append(f'-{tag}=')
             cmd.append(filepath)
             try:
                 flags=subprocess.CREATE_NO_WINDOW if sys.platform=='win32' else 0
