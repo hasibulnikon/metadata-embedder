@@ -111,15 +111,21 @@ class App:
     def _load_app_icon(self):
         base = sys._MEIPASS if getattr(sys,'frozen',False) else os.path.dirname(os.path.abspath(__file__))
         self.icon_photo = None
-        for n in ['icon.ico','icon.png','app.ico']:
+        for n in ['icon.png','icon.ico','app.ico']:
             p = os.path.join(base, n)
             if os.path.exists(p):
                 try: self.root.iconbitmap(p)
                 except: pass
                 try:
-                    img = tk.PhotoImage(file=p)
-                    self.icon_photo = img
-                except: pass
+                    from PIL import Image, ImageTk
+                    img = Image.open(p).convert('RGBA')
+                    img = img.resize((28, 28), Image.LANCZOS)
+                    self.icon_photo = ImageTk.PhotoImage(img)
+                except Exception:
+                    try:
+                        self.icon_photo = tk.PhotoImage(file=p)
+                    except Exception:
+                        self.icon_photo = None
                 break
 
     def _style(self):
