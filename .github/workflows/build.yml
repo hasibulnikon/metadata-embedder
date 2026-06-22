@@ -73,10 +73,10 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.8
-          name: Stock Metadata Embedder v1.8
+          tag_name: v1.9
+          name: Stock Metadata Embedder v1.9
           body: |
-            ## Stock Metadata Embedder v1.8
+            ## Stock Metadata Embedder v1.9
             - Dark theme UI with compact layout
             - Reset button next to Embed button
             - Activity log panel (collapsible)
